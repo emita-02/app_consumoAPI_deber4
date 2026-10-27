@@ -1,47 +1,67 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Image } from "expo-image";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 
-import type { Artwork } from '@/api/artic';
-import { Editorial, Fonts } from '@/constants/editorial';
+import type { Artwork } from "@/api/artic";
+import { Editorial, Fonts } from "@/constants/editorial";
+import { useAddFavorite, useFavoriteStatus, useRemoveFavorite } from "@/queries/useFavorites";
 
-/**
- * Cabeceras que la tarjeta añade a cada imagen (solo nativo).
- *
- * El CDN de imágenes de ArtIC (`www.artic.edu`, Cloudflare) devuelve **403** a:
- *  - peticiones sin cabecera `Referer` — en web la añade el navegador, en nativo no;
- *  - peticiones con la UA por defecto de Android (`Dalvik/2.1.0 …`), que trata como bot.
- *
- * Por eso declaramos `Referer` y sobrescribimos `User-Agent` con la misma UA que usa
- * el `fetch` de React Native (`okhttp/…`), que el CDN sí acepta.
- *
- * Solo en nativo: en web una cabecera personal dispara un preflight `OPTIONS`
- * que el CDN no atendería y las imágenes dejarían de cargar.
- */
 const IMAGE_HEADERS =
-  Platform.OS === 'web'
+  Platform.OS === "web"
     ? undefined
     : {
-        Referer: 'https://www.artic.edu/',
-        'User-Agent': 'okhttp/4.12.0',
+        Referer: "https://www.artic.edu/",
+        "User-Agent": "okhttp/4.12.0",
       };
+
+function extractImageId(imageUrl: string | null): string | null {
+  if (!imageUrl) return null;
+  try {
+    const match = imageUrl.match(/\/([a-f0-9-]+)\/full\//i);
+    if (match && match[1]) return match[1];
+    const parts = imageUrl.split("/");
+    const idx = parts.findIndex((p) => p === "iiif" || p === "2");
+    if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
+  } catch {}
+  return null;
+}
 
 interface ArtworkCardProps {
   artwork: Artwork;
-  /** Posición en la lista: las 4 primeras cargan con prioridad. */
   index?: number;
 }
 
-/**
- * Ficha de galería: obra enmarcada (como un passe-partout) y debajo la cartela
- * de museo —título en serif, artista y una línea de datos en versalitas.
- */
 export function ArtworkCard({ artwork, index }: ArtworkCardProps) {
   const metaLine = [artwork.date, artwork.department]
     .filter((value): value is string => Boolean(value))
-    .join(' · ');
+    .join(" � ");
+
+  const { isFavorite, favorite } = useFavoriteStatus(artwork.id);
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+
+  const toggleFavorite = () => {
+    if (isFavorite && favorite?.id) {
+      removeFavorite.mutate(favorite.id);
+      return;
+    }
+    if (addFavorite.isPending) return;
+    const imageId = extractImageId(artwork.imageUrl);
+    addFavorite.mutate({
+      artworkId: artwork.id,
+      title: artwork.title,
+      artist: artwork.artist,
+      imageId: imageId,
+    } as any);
+  };
+
+  const goToDetail = () => {
+    router.push({ pathname: "/artwork_detail", params: { id: artwork.id } } as any);
+  };
 
   return (
-    <View style={styles.card}>
+    <Pressable onPress={goToDetail} style={styles.card} accessibilityRole="button">
       <View style={styles.frame}>
         <View style={styles.mat}>
           {artwork.imageUrl ? (
@@ -50,13 +70,24 @@ export function ArtworkCard({ artwork, index }: ArtworkCardProps) {
               style={styles.image}
               contentFit="cover"
               transition={220}
-              priority={index !== undefined && index < 4 ? 'high' : 'normal'}
+              priority={index !== undefined && index < 4 ? "high" : "normal"}
             />
           ) : (
             <View style={[styles.image, styles.noImage]}>
               <Text style={styles.noImageText}>Sin imagen</Text>
             </View>
           )}
+          <Pressable
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleFavorite();
+            }}
+            style={styles.heartButton}
+            accessibilityRole="button"
+            accessibilityLabel={isFavorite ? "Quitar de favoritos" : "Guardar en favoritos"}
+            hitSlop={8}>
+            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={22} color={isFavorite ? "#b71c1c" : "#fff"} />
+          </Pressable>
         </View>
       </View>
 
@@ -65,78 +96,34 @@ export function ArtworkCard({ artwork, index }: ArtworkCardProps) {
           {artwork.title}
         </Text>
         {artwork.artist ? (
-          <Text style={styles.artist} numberOfLines={1}>
+          <Text style={[styles.artist, { fontFamily: Fonts.body }]} numberOfLines={1}>
             {artwork.artist}
           </Text>
         ) : null}
         {metaLine ? (
           <>
             <View style={styles.rule} />
-            <Text style={styles.meta} numberOfLines={1}>
+            <Text style={[styles.meta, { fontFamily: Fonts.bodyStrong }]} numberOfLines={1}>
               {metaLine}
             </Text>
           </>
         ) : null}
       </View>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  card: {
-    flex: 1,
-  },
-  frame: {
-    aspectRatio: 0.75,
-    backgroundColor: Editorial.paper,
-    borderWidth: 1,
-    borderColor: Editorial.rule,
-    padding: 6,
-  },
-  mat: {
-    flex: 1,
-    overflow: 'hidden',
-    backgroundColor: Editorial.paperDeep,
-  },
-  image: {
-    width: '100%',
-    height: '100%',
-  },
-  noImage: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  noImageText: {
-    color: Editorial.inkSoft,
-    fontFamily: Fonts.body,
-    fontSize: 11,
-  },
-  label: {
-    marginTop: 10,
-    gap: 4,
-  },
-  title: {
-    color: Editorial.ink,
-    fontFamily: Fonts.display,
-    fontSize: 16,
-    lineHeight: 20,
-  },
-  artist: {
-    color: Editorial.inkSoft,
-    fontFamily: Fonts.body,
-    fontSize: 12,
-    lineHeight: 16,
-  },
-  rule: {
-    backgroundColor: Editorial.rule,
-    height: StyleSheet.hairlineWidth,
-    marginTop: 2,
-  },
-  meta: {
-    color: Editorial.brass,
-    fontFamily: Fonts.bodyStrong,
-    fontSize: 10,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-  },
+  card: { flex: 1 },
+  frame: { aspectRatio: 0.75, backgroundColor: Editorial.paper, borderWidth: 1, borderColor: Editorial.rule, padding: 6 },
+  mat: { flex: 1, overflow: "hidden", backgroundColor: Editorial.paperDeep },
+  image: { width: "100%", height: "100%" },
+  noImage: { alignItems: "center", justifyContent: "center" },
+  noImageText: { color: Editorial.inkSoft, fontFamily: Fonts.body, fontSize: 11 },
+  heartButton: { position: "absolute", top: 6, right: 6, backgroundColor: "rgba(0,0,0,0.25)", borderRadius: 16, padding: 4 },
+  label: { marginTop: 10, gap: 4 },
+  title: { color: Editorial.ink, fontFamily: Fonts.display, fontSize: 16, lineHeight: 20 },
+  artist: { color: Editorial.inkSoft, fontSize: 12, lineHeight: 16 },
+  rule: { backgroundColor: Editorial.rule, height: StyleSheet.hairlineWidth, marginTop: 2 },
+  meta: { color: Editorial.brass, fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase" },
 });

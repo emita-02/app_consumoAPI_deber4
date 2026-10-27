@@ -14,15 +14,12 @@ import { ArtworkCard } from '@/components/artwork-card';
 import { Editorial, Fonts } from '@/constants/editorial';
 import { useArtworks } from '@/queries/useArtworks';
 
-/** TÃ©rminos para sugerir cuando una bÃºsqueda no devuelve nada. */
-const SUGGESTIONS = ['Monet', 'Whistler', 'jarrÃ³n', 'impresionismo'];
+const SUGGESTIONS = ['Monet', 'Whistler', 'jarrón', 'impresionismo'];
 
 export default function GalleryScreen() {
   const [text, setText] = useState('');
   const [term, setTerm] = useState('');
 
-  // Retardo de 450 ms antes de buscar: sin Ã©l, cada tecla serÃ­a una peticiÃ³n
-  // al museo y su lÃ­mite son 60 por minuto por IP.
   useEffect(() => {
     const timer = setTimeout(() => setTerm(text), 450);
     return () => clearTimeout(timer);
@@ -49,20 +46,20 @@ export default function GalleryScreen() {
 
   const statusText = isSearching
     ? isFetching && !isLoadingMore
-      ? `Buscando Â«${q}Â»â€¦`
-      : `Â«${q}Â» Â· ${items.length} ${items.length === 1 ? 'obra' : 'obras'}`
-    : `Obras destacadas Â· ${items.length} en pantalla`;
+      ? `Buscando «${q}»...`
+      : `«${q}» · ${items.length} ${items.length === 1 ? 'obra' : 'obras'}`
+    : `Obras destacadas · ${items.length} en pantalla`;
 
   const footer = !items.length ? undefined : isLoadingMore ? (
     <View style={styles.footer}>
       <ActivityIndicator size="small" color={Editorial.brass} />
-      <Text style={styles.footerText}>Cargando mÃ¡s obrasâ€¦</Text>
+      <Text style={[styles.footerText, { fontFamily: Fonts.body }]}>Cargando más obras...</Text>
     </View>
   ) : error ? (
     <View style={styles.footer}>
-      <Text style={styles.footerError}>No se pudieron cargar mÃ¡s obras.</Text>
+      <Text style={[styles.footerError, { fontFamily: Fonts.body }]}>No se pudieron cargar más obras.</Text>
       <Pressable onPress={() => refetch()} hitSlop={8}>
-        <Text style={styles.footerAction}>Reintentar</Text>
+        <Text style={[styles.footerAction, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
       </Pressable>
     </View>
   ) : hasMore ? (
@@ -70,13 +67,13 @@ export default function GalleryScreen() {
       onPress={loadMore}
       style={styles.moreButton}
       accessibilityRole="button"
-      accessibilityLabel="Ver mÃ¡s obras">
-      <Text style={styles.moreText}>Ver mÃ¡s</Text>
+      accessibilityLabel="Ver más obras">
+      <Text style={[styles.moreText, { fontFamily: Fonts.bodyStrong }]}>Ver más</Text>
     </Pressable>
   ) : (
     <View style={styles.endBlock}>
       <View style={styles.endRule} />
-      <Text style={styles.endText}>Fin de la selecciÃ³n</Text>
+      <Text style={[styles.endText, { fontFamily: Fonts.body }]}>Fin de la selección</Text>
       <View style={styles.endRule} />
     </View>
   );
@@ -85,16 +82,16 @@ export default function GalleryScreen() {
     <SafeAreaView style={styles.screen} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.brand}>Artelier</Text>
-        <Text style={styles.kicker}>ColecciÃ³n digital Â· Art Institute of Chicago</Text>
+        <Text style={[styles.kicker, { fontFamily: Fonts.bodyStrong }]}>Colección digital · Art Institute of Chicago</Text>
         <View style={styles.headerRule} />
 
         <View style={styles.searchRow}>
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Buscar por tÃ­tulo, artista o tÃ©cnica"
+            placeholder="Buscar por título, artista o técnica"
             placeholderTextColor={Editorial.inkSoft}
-            style={styles.search}
+            style={[styles.search, { fontFamily: Fonts.body }]}
             autoCapitalize="none"
             autoCorrect={false}
             returnKeyType="search"
@@ -102,13 +99,13 @@ export default function GalleryScreen() {
             accessibilityLabel="Buscar obras"
           />
           {text.length > 0 ? (
-            <Pressable onPress={clearSearch} hitSlop={10} accessibilityLabel="Borrar bÃºsqueda">
-              <Text style={styles.clearText}>Ã—</Text>
+            <Pressable onPress={clearSearch} hitSlop={10} accessibilityLabel="Borrar búsqueda">
+              <Text style={styles.clearText}>×</Text>
             </Pressable>
           ) : null}
         </View>
 
-        <Text style={styles.status} numberOfLines={1}>
+        <Text style={[styles.status, { fontFamily: Fonts.body }]} numberOfLines={1}>
           {statusText}
         </Text>
       </View>
@@ -156,7 +153,7 @@ function EmptyState({
     return (
       <View style={styles.stateBlock}>
         <ActivityIndicator size="small" color={Editorial.brass} />
-        <Text style={styles.stateText}>Cargando la colecciÃ³nâ€¦</Text>
+        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>Cargando la colección...</Text>
       </View>
     );
   }
@@ -164,10 +161,10 @@ function EmptyState({
   if (error) {
     return (
       <View style={styles.stateBlock}>
-        <Text style={styles.stateTitle}>No se pudo cargar la galerÃ­a</Text>
-        <Text style={styles.stateText}>{error.message}</Text>
+        <Text style={styles.stateTitle}>No se pudo cargar la galería</Text>
+        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>{error.message}</Text>
         <Pressable onPress={onRetry} style={styles.retryButton} accessibilityRole="button">
-          <Text style={styles.retryText}>Reintentar</Text>
+          <Text style={[styles.retryText, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
         </Pressable>
       </View>
     );
@@ -177,15 +174,15 @@ function EmptyState({
     return (
       <View style={styles.stateBlock}>
         <Text style={styles.stateTitle}>Sin resultados</Text>
-        <Text style={styles.stateText}>No encontramos obras para Â«{q}Â».</Text>
-        <Text style={styles.hint}>Prueba con: {SUGGESTIONS.join(' Â· ')}</Text>
+        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>No encontramos obras para «{q}».</Text>
+        <Text style={[styles.hint, { fontFamily: Fonts.bodyStrong }]}>Prueba con: {SUGGESTIONS.join(' · ')}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.stateBlock}>
-      <Text style={styles.stateText}>La colecciÃ³n no estÃ¡ disponible ahora mismo.</Text>
+      <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>La colección no está disponible ahora mismo.</Text>
     </View>
   );
 }
@@ -210,7 +207,6 @@ const styles = StyleSheet.create({
   },
   kicker: {
     color: Editorial.brass,
-    fontFamily: Fonts.bodyStrong,
     fontSize: 10,
     letterSpacing: 1.6,
     marginTop: 4,
@@ -233,7 +229,6 @@ const styles = StyleSheet.create({
   search: {
     color: Editorial.ink,
     flex: 1,
-    fontFamily: Fonts.body,
     fontSize: 15,
     paddingVertical: 6,
   },
@@ -246,7 +241,6 @@ const styles = StyleSheet.create({
   },
   status: {
     color: Editorial.inkSoft,
-    fontFamily: Fonts.body,
     fontSize: 11,
     letterSpacing: 0.3,
     marginTop: 10,
@@ -278,14 +272,12 @@ const styles = StyleSheet.create({
   },
   stateText: {
     color: Editorial.inkSoft,
-    fontFamily: Fonts.body,
     fontSize: 13,
     lineHeight: 20,
     textAlign: 'center',
   },
   hint: {
     color: Editorial.brass,
-    fontFamily: Fonts.bodyStrong,
     fontSize: 11,
     letterSpacing: 0.4,
     textAlign: 'center',
@@ -299,7 +291,6 @@ const styles = StyleSheet.create({
   },
   retryText: {
     color: Editorial.ink,
-    fontFamily: Fonts.bodyStrong,
     fontSize: 11,
     letterSpacing: 1.4,
     textTransform: 'uppercase',
@@ -313,18 +304,15 @@ const styles = StyleSheet.create({
   },
   footerText: {
     color: Editorial.inkSoft,
-    fontFamily: Fonts.body,
     fontSize: 12,
   },
   footerError: {
     color: Editorial.danger,
-    fontFamily: Fonts.body,
     fontSize: 12,
     textAlign: 'center',
   },
   footerAction: {
     color: Editorial.brass,
-    fontFamily: Fonts.bodyStrong,
     fontSize: 12,
     textDecorationLine: 'underline',
   },
@@ -338,7 +326,6 @@ const styles = StyleSheet.create({
   },
   moreText: {
     color: Editorial.ink,
-    fontFamily: Fonts.bodyStrong,
     fontSize: 12,
     letterSpacing: 2,
     textTransform: 'uppercase',
@@ -356,7 +343,6 @@ const styles = StyleSheet.create({
   },
   endText: {
     color: Editorial.inkSoft,
-    fontFamily: Fonts.body,
     fontSize: 11,
     letterSpacing: 1,
     textTransform: 'uppercase',
