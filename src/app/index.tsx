@@ -53,7 +53,7 @@ export default function GalleryScreen() {
       : `«${q}» · ${items.length} ${items.length === 1 ? 'obra' : 'obras'}`
     : `Obras destacadas · ${items.length} en pantalla`;
 
-  const footer = !items.length ? null : isLoadingMore ? (
+  const footer = !items.length ? undefined : isLoadingMore ? (
     <View style={styles.footer}>
       <ActivityIndicator size="small" color={Editorial.brass} />
       <Text style={styles.footerText}>Cargando más obras…</Text>
