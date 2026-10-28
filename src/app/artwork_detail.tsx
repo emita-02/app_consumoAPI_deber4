@@ -30,8 +30,9 @@ function extractImageId(imageUrl: string | null): string | null {
 }
 
 export default function ArtworkDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const artworkId = id || "";
+  const params = useLocalSearchParams();
+  const artworkId = Array.isArray(params.id) ? params.id[0] : (params.id as string) || "";
+
   const { artwork, isLoading, error, refetch } = useArtwork(artworkId);
   const { isFavorite, favorite } = useFavoriteStatus(artworkId);
   const addFavorite = useAddFavorite();
@@ -57,7 +58,7 @@ export default function ArtworkDetailScreen() {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button">
-          <Text style={[styles.backText, { fontFamily: Fonts.bodyStrong }]}>? Volver</Text>
+          <Text style={[styles.backText, { fontFamily: Fonts.bodyStrong }]}> Volver</Text>
         </Pressable>
         <View style={styles.headerRow}>
           <Text style={styles.brand}>Detalle</Text>
@@ -100,7 +101,7 @@ export default function ArtworkDetailScreen() {
             <Text style={styles.title}>{artwork.title}</Text>
             {artwork.artist ? <Text style={[styles.artist, { fontFamily: Fonts.body }]}>{artwork.artist}</Text> : null}
             {artwork.date ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Fecha: {artwork.date}</Text> : null}
-            {artwork.medium ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Técnica/medio: {artwork.medium}</Text> : null}
+            {artwork.medium ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>TÃ©cnica/medio: {artwork.medium}</Text> : null}
             {artwork.department ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Departamento: {artwork.department}</Text> : null}
             {artwork.placeOfOrigin ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Origen: {artwork.placeOfOrigin}</Text> : null}
             {artwork.creditLine ? <Text style={[styles.credit, { fontFamily: Fonts.body }]}>{artwork.creditLine}</Text> : null}
@@ -116,7 +117,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: Editorial.paper },
   header: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
   backButton: { alignSelf: "flex-start", marginBottom: 6 },
-  backText: { color: Editorial.brass, fontSize: 12 },
+  backText: { color: Editorial.brass, fontSize: 14 },
   headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   brand: { color: Editorial.ink, fontFamily: Fonts.displayBold, fontSize: 32, letterSpacing: -0.6 },
   heartDetail: { padding: 4 },

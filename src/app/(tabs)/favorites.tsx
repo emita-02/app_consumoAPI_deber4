@@ -52,7 +52,7 @@ export default function FavoritesScreen() {
         <View style={styles.stateBlock}>
           <Text style={styles.stateTitle}>No hay favoritos</Text>
           <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>
-            Guarda obras desde el cat·logo para verlas aquÌ.
+            Guarda obras desde el cat√°logo para verlas aqu√≠.
           </Text>
         </View>
       ) : (

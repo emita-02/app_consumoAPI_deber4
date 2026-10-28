@@ -35,7 +35,7 @@ interface ArtworkCardProps {
 export function ArtworkCard({ artwork, index }: ArtworkCardProps) {
   const metaLine = [artwork.date, artwork.department]
     .filter((value): value is string => Boolean(value))
-    .join(" · ");
+    .join(" - ");
 
   const { isFavorite, favorite } = useFavoriteStatus(artwork.id);
   const addFavorite = useAddFavorite();
@@ -57,7 +57,7 @@ export function ArtworkCard({ artwork, index }: ArtworkCardProps) {
   };
 
   const goToDetail = () => {
-    router.push({ pathname: "/artwork_detail", params: { id: artwork.id } } as any);
+    router.push({ pathname: "/artwork_detail", params: { id: artwork.id } });
   };
 
   return (
