@@ -44,6 +44,13 @@ export default function GalleryScreen() {
     setTerm("");
   };
 
+  useEffect(() => {
+    console.log('[gallery]', {
+      term, q, items: items.length, isLoading, isFetching, hasMore,
+      error: error?.message,
+    });
+  }, [term, q, items.length, isLoading, isFetching, hasMore, error]);
+
   const statusText = isSearching
     ? isFetching && !isLoadingMore
       ? `Buscando -${q}-...`

@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useQueries, useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 
 import {
   fetchArtwork,
@@ -34,50 +34,44 @@ function mergeArtworks(previous: Artwork[], incoming: Artwork[]): Artwork[] {
 /**
  * Galería: catálogo completo o búsqueda, con paginación por botón «Ver más».
  *
- * Por qué NO `useInfiniteQuery`: cada página vive en su propia clave
- * (`art.list(page, q)`), así que al volver atrás o repetir una búsqueda las
- * páginas anteriores salen de la caché sin pedirlas de nuevo, y el código
- * se entiende con `useQuery` + un estado local que acumula resultados.
+ * Diseño (sin `useEffect` ni lista acumulada en estado):
+ *  - El ÚNICO estado local es hasta qué página llega la búsqueda actual.
+ *  - Se piden las páginas 1..N de la búsqueda actual con `useQueries`, cada una
+ *    en su propia clave `art.list(page, q)`.
+ *  - `items` se DERIVA de lo que haya en caché en ese momento.
  *
- * Orden de los efectos:
- *  1. Al cambiar la búsqueda → página 1 y lista vacía.
- *  2. Cuando la página actual resuelve → se añaden sus obras (sin duplicar).
+ * Así, al borrar la búsqueda la clave `art.list(1, '')` ya está en caché y las
+ * obras de inicio aparecen en el mismo render, sin depender de que ningún
+ * efecto vuelva a rellenar una lista que otro efecto acaba de vaciar.
  */
 export function useArtworks(input: string) {
   const q = normalizeSearch(input);
 
-  // `q` y `page` se guardan JUNTAS: si van en estados separados, al cambiar la
-  // búsqueda la siguiente renderación usaría la página vieja con el texto nuevo
-  // y dispararía una petición inútil (el museo admite 60 por minuto).
-  const [params, setParams] = useState({ q: '', page: 1 });
-  const [items, setItems] = useState<Artwork[]>([]);
+  // `page` pertenece a una búsqueda concreta. Si `q` cambia, el valor guardado
+  // ya no coincide y la página vuelve a 1 automáticamente (sin efectos).
+  const [pageState, setPageState] = useState({ q: '', page: 1 });
+  const page = pageState.q === q ? pageState.page : 1;
 
-  // Cambiar de búsqueda empieza una galería nueva.
-  useEffect(() => {
-    setParams((previous) => (previous.q === q ? previous : { q, page: 1 }));
-    setItems([]);
-  }, [q]);
-
-  const { q: search, page } = params;
-
-  // `params` llega un render tarde respecto al texto que ha escrito la usuaria:
-  // mientras no coincidan, la clave de la consulta todavía es la de la búsqueda
-  // anterior y no debemos mezclar sus resultados con los nuevos.
-  const inSync = search === q;
-
-  const query = useQuery({
-    queryKey: queryKeys.art.list({ page, q: search }),
-    queryFn: () => fetchArtworks({ page, q: search }),
-    staleTime: PUBLIC_STALE_TIME,
+  const results = useQueries({
+    queries: Array.from({ length: page }, (_, index) => ({
+      queryKey: queryKeys.art.list({ page: index + 1, q }),
+      queryFn: () => fetchArtworks({ page: index + 1, q }),
+      staleTime: (query) =>
+        query.state.data && query.state.data.items.length > 0
+          ? PUBLIC_STALE_TIME
+          : 0,
+    })),
   });
 
-  // Acumula la página actual. Si la caché devuelve la misma página otra vez,
-  // `mergeArtworks` evita repetir obras.
-  const pageData = query.data;
-  useEffect(() => {
-    if (!pageData || !inSync) return;
-    setItems((previous) => mergeArtworks(previous, pageData.items));
-  }, [pageData, inSync]);
+  // Obras acumuladas de las páginas 1..N, en orden y sin repetir.
+  let items: Artwork[] = [];
+  for (const result of results) {
+    if (result.data) items = mergeArtworks(items, result.data.items);
+  }
+
+  const first = results[0];
+  const last = results[results.length - 1];
+  const failed = results.find((result) => result.error);
 
   const isSearching = q.length > 0;
 
@@ -88,18 +82,18 @@ export function useArtworks(input: string) {
     q,
     isSearching,
     /** Primera carga (no hay NADA que mostrar todavía). */
-    isLoading: items.length === 0 && (query.isPending || query.isFetching),
+    isLoading: items.length === 0 && (first.isPending || first.isFetching),
     /** Estamos trayendo una página más con «Ver más». */
-    isLoadingMore: page > 1 && query.isFetching,
-    hasMore: pageData?.hasMore ?? true,
+    isLoadingMore: page > 1 && last.isFetching,
+    hasMore: last.data?.hasMore ?? true,
     loadMore: () => {
-      if (query.isFetching) return;
-      setParams((current) => ({ ...current, page: current.page + 1 }));
+      if (last.isFetching) return;
+      setPageState({ q, page: page + 1 });
     },
     /** `true` mientras hay una petición en marcha (para el pie de lista). */
-    isFetching: query.isFetching,
-    error: query.error,
-    refetch: query.refetch,
+    isFetching: results.some((result) => result.isFetching),
+    error: (failed?.error ?? null) as Error | null,
+    refetch: () => (failed ?? last).refetch(),
   };
 }
 

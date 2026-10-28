@@ -800,154 +800,7 @@ export async function deleteNote(id: string): Promise<void> {
 
 
 ================================================
-ðŸ“„ ARCHIVO: src\app\artwork_detail.tsx
-================================================
-
-import { useLocalSearchParams, router } from "expo-router";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Image } from "expo-image";
-import { Ionicons } from "@expo/vector-icons";
-
-import { useArtwork } from "@/queries/useArtworks";
-import { Editorial, Fonts } from "@/constants/editorial";
-import { useAddFavorite, useFavoriteStatus, useRemoveFavorite } from "@/queries/useFavorites";
-import { Platform } from "react-native";
-
-const IMAGE_HEADERS =
-  Platform.OS === "web"
-    ? undefined
-    : {
-        Referer: "https://www.artic.edu/",
-        "User-Agent": "okhttp/4.12.0",
-      };
-
-function extractImageId(imageUrl: string | null): string | null {
-  if (!imageUrl) return null;
-  try {
-    const match = imageUrl.match(/\/([a-f0-9-]+)\/full\//i);
-    if (match && match[1]) return match[1];
-    const parts = imageUrl.split("/");
-    const idx = parts.findIndex((p) => p === "iiif" || p === "2");
-    if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
-  } catch {}
-  return null;
-}
-
-export default function ArtworkDetailScreen() {
-  const params = useLocalSearchParams();
-  const artworkId = Array.isArray(params.id) ? params.id[0] : (params.id as string) || "";
-
-  const { artwork, isLoading, error, refetch } = useArtwork(artworkId);
-  const { isFavorite, favorite } = useFavoriteStatus(artworkId);
-  const addFavorite = useAddFavorite();
-  const removeFavorite = useRemoveFavorite();
-
-  const toggleFavorite = () => {
-    if (!artwork) return;
-    if (isFavorite && favorite?.id) {
-      removeFavorite.mutate(favorite.id);
-      return;
-    }
-    if (addFavorite.isPending) return;
-    const imageId = extractImageId(artwork.imageUrl);
-    addFavorite.mutate({
-      artworkId: artwork.id,
-      title: artwork.title,
-      artist: artwork.artist,
-      imageId: imageId,
-    } as any);
-  };
-
-  return (
-    <SafeAreaView style={styles.screen} edges={["top"]}>
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button">
-          <Text style={[styles.backText, { fontFamily: Fonts.bodyStrong }]}>? Volver</Text>
-        </Pressable>
-        <View style={styles.headerRow}>
-          <Text style={styles.brand}>Detalle</Text>
-          <Pressable onPress={toggleFavorite} style={styles.heartDetail} accessibilityRole="button">
-            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={26} color={isFavorite ? "#b71c1c" : Editorial.ink} />
-          </Pressable>
-        </View>
-        <View style={styles.headerRule} />
-      </View>
-
-      {isLoading ? (
-        <View style={styles.stateBlock}>
-          <ActivityIndicator size="small" color={Editorial.brass} />
-          <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>Cargando obra...</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.stateBlock}>
-          <Text style={styles.stateTitle}>No se pudo cargar la obra</Text>
-          <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>{error.message}</Text>
-          <Pressable onPress={() => refetch()} style={styles.retryButton}>
-            <Text style={[styles.retryText, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
-          </Pressable>
-        </View>
-      ) : !artwork ? (
-        <View style={styles.stateBlock}>
-          <Text style={styles.stateTitle}>Obra no disponible</Text>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-          <View style={styles.imageFrame}>
-            {artwork.imageUrl ? (
-              <Image source={{ uri: artwork.imageUrl, headers: IMAGE_HEADERS }} style={styles.image} contentFit="contain" />
-            ) : (
-              <View style={[styles.image, styles.noImage]}>
-                <Text style={styles.noImageText}>Sin imagen</Text>
-              </View>
-            )}
-          </View>
-          <View style={styles.info}>
-            <Text style={styles.title}>{artwork.title}</Text>
-            {artwork.artist ? <Text style={[styles.artist, { fontFamily: Fonts.body }]}>{artwork.artist}</Text> : null}
-            {artwork.date ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Fecha: {artwork.date}</Text> : null}
-            {artwork.medium ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>T�cnica/medio: {artwork.medium}</Text> : null}
-            {artwork.department ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Departamento: {artwork.department}</Text> : null}
-            {artwork.placeOfOrigin ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Origen: {artwork.placeOfOrigin}</Text> : null}
-            {artwork.creditLine ? <Text style={[styles.credit, { fontFamily: Fonts.body }]}>{artwork.creditLine}</Text> : null}
-            {artwork.description ? <Text style={[styles.description, { fontFamily: Fonts.body }]}>{artwork.description}</Text> : null}
-          </View>
-        </ScrollView>
-      )}
-    </SafeAreaView>
-  );
-}
-
-const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Editorial.paper },
-  header: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
-  backButton: { alignSelf: "flex-start", marginBottom: 6 },
-  backText: { color: Editorial.brass, fontSize: 12 },
-  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  brand: { color: Editorial.ink, fontFamily: Fonts.displayBold, fontSize: 32, letterSpacing: -0.6 },
-  heartDetail: { padding: 4 },
-  headerRule: { backgroundColor: Editorial.ink, height: 1, marginTop: 10, opacity: 0.9 },
-  content: { paddingHorizontal: 20, paddingBottom: 40 },
-  imageFrame: { width: "100%", aspectRatio: 0.8, borderWidth: 1, borderColor: Editorial.rule, padding: 8, backgroundColor: Editorial.paper, marginTop: 12 },
-  image: { width: "100%", height: "100%" },
-  noImage: { alignItems: "center", justifyContent: "center" },
-  noImageText: { color: Editorial.inkSoft, fontFamily: Fonts.body, fontSize: 12 },
-  info: { marginTop: 16, gap: 6 },
-  title: { color: Editorial.ink, fontFamily: Fonts.display, fontSize: 24, lineHeight: 28 },
-  artist: { color: Editorial.inkSoft, fontSize: 14 },
-  meta: { color: Editorial.ink, fontSize: 13 },
-  credit: { color: Editorial.inkSoft, fontSize: 12, marginTop: 4 },
-  description: { color: Editorial.ink, fontSize: 13, lineHeight: 20, marginTop: 6 },
-  stateBlock: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 10 },
-  stateTitle: { color: Editorial.ink, fontFamily: Fonts.display, fontSize: 18 },
-  stateText: { color: Editorial.inkSoft, fontSize: 14, textAlign: "center" },
-  retryButton: { marginTop: 8, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: Editorial.rule },
-  retryText: { color: Editorial.ink, fontSize: 12 },
-});
-
-
-================================================
-ðŸ“„ ARCHIVO: src\app\favorites.tsx
+ðŸ“„ ARCHIVO: src\app\(tabs)\favorites.tsx
 ================================================
 
 import {
@@ -1004,7 +857,7 @@ export default function FavoritesScreen() {
         <View style={styles.stateBlock}>
           <Text style={styles.stateTitle}>No hay favoritos</Text>
           <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>
-            Guarda obras desde el cat�logo para verlas aqu�.
+            Guarda obras desde el catálogo para verlas aquí.
           </Text>
         </View>
       ) : (
@@ -1087,7 +940,7 @@ const styles = StyleSheet.create({
 
 
 ================================================
-ðŸ“„ ARCHIVO: src\app\index.tsx
+ðŸ“„ ARCHIVO: src\app\(tabs)\index.tsx
 ================================================
 
 import { useEffect, useState } from "react";
@@ -1106,7 +959,7 @@ import { ArtworkCard } from "@/components/artwork-card";
 import { Editorial, Fonts } from "@/constants/editorial";
 import { useArtworks } from "@/queries/useArtworks";
 
-const SUGGESTIONS = ["Monet", "Whistler", "jarr�n", "impresionismo"];
+const SUGGESTIONS = ["Monet", "Whistler", "jarrón", "impresionismo"];
 
 export default function GalleryScreen() {
   const [text, setText] = useState("");
@@ -1138,18 +991,18 @@ export default function GalleryScreen() {
 
   const statusText = isSearching
     ? isFetching && !isLoadingMore
-      ? `Buscando �${q}�...`
-      : `�${q}� � ${items.length} ${items.length === 1 ? "obra" : "obras"}`
-    : `Obras destacadas � ${items.length} en pantalla`;
+      ? `Buscando -${q}-...`
+      : `-${q}- - ${items.length} ${items.length === 1 ? "obra" : "obras"}`
+    : `Obras destacadas - ${items.length} en pantalla`;
 
   const footer = !items.length ? undefined : isLoadingMore ? (
     <View style={styles.footer}>
       <ActivityIndicator size="small" color={Editorial.brass} />
-      <Text style={[styles.footerText, { fontFamily: Fonts.body }]}>Cargando m�s obras...</Text>
+      <Text style={[styles.footerText, { fontFamily: Fonts.body }]}>Cargando más obras...</Text>
     </View>
   ) : error ? (
     <View style={styles.footer}>
-      <Text style={[styles.footerError, { fontFamily: Fonts.body }]}>No se pudieron cargar m�s obras.</Text>
+      <Text style={[styles.footerError, { fontFamily: Fonts.body }]}>No se pudieron cargar más obras.</Text>
       <Pressable onPress={() => refetch()} hitSlop={8}>
         <Text style={[styles.footerAction, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
       </Pressable>
@@ -1159,13 +1012,13 @@ export default function GalleryScreen() {
       onPress={loadMore}
       style={styles.moreButton}
       accessibilityRole="button"
-      accessibilityLabel="Ver m�s obras">
-      <Text style={[styles.moreText, { fontFamily: Fonts.bodyStrong }]}>Ver m�s</Text>
+      accessibilityLabel="Ver más obras">
+      <Text style={[styles.moreText, { fontFamily: Fonts.bodyStrong }]}>Ver más</Text>
     </Pressable>
   ) : (
     <View style={styles.endBlock}>
       <View style={styles.endRule} />
-      <Text style={[styles.endText, { fontFamily: Fonts.body }]}>Fin de la selecci�n</Text>
+      <Text style={[styles.endText, { fontFamily: Fonts.body }]}>Fin de la selección</Text>
       <View style={styles.endRule} />
     </View>
   );
@@ -1174,14 +1027,14 @@ export default function GalleryScreen() {
     <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
         <Text style={styles.brand}>Artelier</Text>
-        <Text style={[styles.kicker, { fontFamily: Fonts.bodyStrong }]}>Colecci�n digital � Art Institute of Chicago</Text>
+        <Text style={[styles.kicker, { fontFamily: Fonts.bodyStrong }]}>Colección digital - Art Institute of Chicago</Text>
         <View style={styles.headerRule} />
 
         <View style={styles.searchRow}>
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Buscar por t�tulo, artista o t�cnica"
+            placeholder="Buscar por título, artista o técnica"
             placeholderTextColor={Editorial.inkSoft}
             style={[styles.search, { fontFamily: Fonts.body }]}
             autoCapitalize="none"
@@ -1191,8 +1044,8 @@ export default function GalleryScreen() {
             accessibilityLabel="Buscar obras"
           />
           {text.length > 0 ? (
-            <Pressable onPress={clearSearch} hitSlop={10} accessibilityLabel="Borrar b�squeda">
-              <Text style={styles.clearText}>�</Text>
+            <Pressable onPress={clearSearch} hitSlop={10} accessibilityLabel="Borrar búsqueda">
+              <Text style={styles.clearText}>X</Text>
             </Pressable>
           ) : null}
         </View>
@@ -1245,7 +1098,7 @@ function EmptyState({
     return (
       <View style={styles.stateBlock}>
         <ActivityIndicator size="small" color={Editorial.brass} />
-        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>Cargando la colecci�n...</Text>
+        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>Cargando la colección...</Text>
       </View>
     );
   }
@@ -1253,7 +1106,7 @@ function EmptyState({
   if (error) {
     return (
       <View style={styles.stateBlock}>
-        <Text style={styles.stateTitle}>No se pudo cargar la galer�a</Text>
+        <Text style={styles.stateTitle}>No se pudo cargar la galería</Text>
         <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>{error.message}</Text>
         <Pressable onPress={onRetry} style={styles.retryButton} accessibilityRole="button">
           <Text style={[styles.retryText, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
@@ -1266,15 +1119,15 @@ function EmptyState({
     return (
       <View style={styles.stateBlock}>
         <Text style={styles.stateTitle}>Sin resultados</Text>
-        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>No encontramos obras para �{q}�.</Text>
-        <Text style={[styles.hint, { fontFamily: Fonts.bodyStrong }]}>Prueba con: {SUGGESTIONS.join(" � ")}</Text>
+        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>No encontramos obras para -{q}-.</Text>
+        <Text style={[styles.hint, { fontFamily: Fonts.bodyStrong }]}>Prueba con: {SUGGESTIONS.join(" - ")}</Text>
       </View>
     );
   }
 
   return (
     <View style={styles.stateBlock}>
-      <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>La colecci�n no est� disponible ahora mismo.</Text>
+      <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>La colección no está disponible ahora mismo.</Text>
     </View>
   );
 }
@@ -1443,358 +1296,161 @@ const styles = StyleSheet.create({
 
 
 ================================================
-ðŸ“„ ARCHIVO: src\app\[id].tsx
+ðŸ“„ ARCHIVO: src\app\(tabs)\_layout.tsx
 ================================================
 
-import { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { ArtworkCard } from '@/components/artwork-card';
-import { Editorial, Fonts } from '@/constants/editorial';
-import { useArtworks } from '@/queries/useArtworks';
+import AppTabs from '@/components/app-tabs';
 
-const SUGGESTIONS = ['Monet', 'Whistler', 'jarr�n', 'impresionismo'];
+export default function TabsLayout() {
+  return <AppTabs />;
+}
 
-export default function GalleryScreen() {
-  const [text, setText] = useState('');
-  const [term, setTerm] = useState('');
 
-  useEffect(() => {
-    const timer = setTimeout(() => setTerm(text), 450);
-    return () => clearTimeout(timer);
-  }, [text]);
+================================================
+ðŸ“„ ARCHIVO: src\app\artwork_detail.tsx
+================================================
 
-  const gallery = useArtworks(term);
-  const {
-    items,
-    q,
-    isSearching,
-    isLoading,
-    isLoadingMore,
-    isFetching,
-    hasMore,
-    loadMore,
-    error,
-    refetch,
-  } = gallery;
+import { useLocalSearchParams, router } from "expo-router";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
+import { Ionicons } from "@expo/vector-icons";
 
-  const clearSearch = () => {
-    setText('');
-    setTerm('');
+import { useArtwork } from "@/queries/useArtworks";
+import { Editorial, Fonts } from "@/constants/editorial";
+import { useAddFavorite, useFavoriteStatus, useRemoveFavorite } from "@/queries/useFavorites";
+import { Platform } from "react-native";
+
+const IMAGE_HEADERS =
+  Platform.OS === "web"
+    ? undefined
+    : {
+        Referer: "https://www.artic.edu/",
+        "User-Agent": "okhttp/4.12.0",
+      };
+
+function extractImageId(imageUrl: string | null): string | null {
+  if (!imageUrl) return null;
+  try {
+    const match = imageUrl.match(/\/([a-f0-9-]+)\/full\//i);
+    if (match && match[1]) return match[1];
+    const parts = imageUrl.split("/");
+    const idx = parts.findIndex((p) => p === "iiif" || p === "2");
+    if (idx >= 0 && parts[idx + 1]) return parts[idx + 1];
+  } catch {}
+  return null;
+}
+
+export default function ArtworkDetailScreen() {
+  const params = useLocalSearchParams();
+  const artworkId = Array.isArray(params.id) ? params.id[0] : (params.id as string) || "";
+
+  const { artwork, isLoading, error, refetch } = useArtwork(artworkId);
+  const { isFavorite, favorite } = useFavoriteStatus(artworkId);
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
+
+  const toggleFavorite = () => {
+    if (!artwork) return;
+    if (isFavorite && favorite?.id) {
+      removeFavorite.mutate(favorite.id);
+      return;
+    }
+    if (addFavorite.isPending) return;
+    const imageId = extractImageId(artwork.imageUrl);
+    addFavorite.mutate({
+      artworkId: artwork.id,
+      title: artwork.title,
+      artist: artwork.artist,
+      imageId: imageId,
+    } as any);
   };
 
-  const statusText = isSearching
-    ? isFetching && !isLoadingMore
-      ? `Buscando �${q}�...`
-      : `�${q}� � ${items.length} ${items.length === 1 ? 'obra' : 'obras'}`
-    : `Obras destacadas � ${items.length} en pantalla`;
-
-  const footer = !items.length ? undefined : isLoadingMore ? (
-    <View style={styles.footer}>
-      <ActivityIndicator size="small" color={Editorial.brass} />
-      <Text style={[styles.footerText, { fontFamily: Fonts.body }]}>Cargando m�s obras...</Text>
-    </View>
-  ) : error ? (
-    <View style={styles.footer}>
-      <Text style={[styles.footerError, { fontFamily: Fonts.body }]}>No se pudieron cargar m�s obras.</Text>
-      <Pressable onPress={() => refetch()} hitSlop={8}>
-        <Text style={[styles.footerAction, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
-      </Pressable>
-    </View>
-  ) : hasMore ? (
-    <Pressable
-      onPress={loadMore}
-      style={styles.moreButton}
-      accessibilityRole="button"
-      accessibilityLabel="Ver m�s obras">
-      <Text style={[styles.moreText, { fontFamily: Fonts.bodyStrong }]}>Ver m�s</Text>
-    </Pressable>
-  ) : (
-    <View style={styles.endBlock}>
-      <View style={styles.endRule} />
-      <Text style={[styles.endText, { fontFamily: Fonts.body }]}>Fin de la selecci�n</Text>
-      <View style={styles.endRule} />
-    </View>
-  );
-
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
+    <SafeAreaView style={styles.screen} edges={["top"]}>
       <View style={styles.header}>
-        <Text style={styles.brand}>Artelier</Text>
-        <Text style={[styles.kicker, { fontFamily: Fonts.bodyStrong }]}>Colecci�n digital � Art Institute of Chicago</Text>
-        <View style={styles.headerRule} />
-
-        <View style={styles.searchRow}>
-          <TextInput
-            value={text}
-            onChangeText={setText}
-            placeholder="Buscar por t�tulo, artista o t�cnica"
-            placeholderTextColor={Editorial.inkSoft}
-            style={[styles.search, { fontFamily: Fonts.body }]}
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            selectionColor={Editorial.brass}
-            accessibilityLabel="Buscar obras"
-          />
-          {text.length > 0 ? (
-            <Pressable onPress={clearSearch} hitSlop={10} accessibilityLabel="Borrar b�squeda">
-              <Text style={styles.clearText}>�</Text>
-            </Pressable>
-          ) : null}
+        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityRole="button">
+          <Text style={[styles.backText, { fontFamily: Fonts.bodyStrong }]}> Volver</Text>
+        </Pressable>
+        <View style={styles.headerRow}>
+          <Text style={styles.brand}>Detalle</Text>
+          <Pressable onPress={toggleFavorite} style={styles.heartDetail} accessibilityRole="button">
+            <Ionicons name={isFavorite ? "heart" : "heart-outline"} size={26} color={isFavorite ? "#b71c1c" : Editorial.ink} />
+          </Pressable>
         </View>
-
-        <Text style={[styles.status, { fontFamily: Fonts.body }]} numberOfLines={1}>
-          {statusText}
-        </Text>
+        <View style={styles.headerRule} />
       </View>
 
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        renderItem={({ item, index }) => <ArtworkCard artwork={item} index={index} />}
-        columnWrapperStyle={styles.row}
-        contentContainerStyle={[
-          styles.listContent,
-          items.length === 0 && styles.listEmptyContent,
-        ]}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <EmptyState
-            isLoading={isLoading}
-            error={error}
-            isSearching={isSearching}
-            q={q}
-            onRetry={() => refetch()}
-          />
-        }
-        ListFooterComponent={footer}
-      />
+      {isLoading ? (
+        <View style={styles.stateBlock}>
+          <ActivityIndicator size="small" color={Editorial.brass} />
+          <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>Cargando obra...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.stateBlock}>
+          <Text style={styles.stateTitle}>No se pudo cargar la obra</Text>
+          <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>{error.message}</Text>
+          <Pressable onPress={() => refetch()} style={styles.retryButton}>
+            <Text style={[styles.retryText, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
+          </Pressable>
+        </View>
+      ) : !artwork ? (
+        <View style={styles.stateBlock}>
+          <Text style={styles.stateTitle}>Obra no disponible</Text>
+        </View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <View style={styles.imageFrame}>
+            {artwork.imageUrl ? (
+              <Image source={{ uri: artwork.imageUrl, headers: IMAGE_HEADERS }} style={styles.image} contentFit="contain" />
+            ) : (
+              <View style={[styles.image, styles.noImage]}>
+                <Text style={styles.noImageText}>Sin imagen</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.info}>
+            <Text style={styles.title}>{artwork.title}</Text>
+            {artwork.artist ? <Text style={[styles.artist, { fontFamily: Fonts.body }]}>{artwork.artist}</Text> : null}
+            {artwork.date ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Fecha: {artwork.date}</Text> : null}
+            {artwork.medium ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Técnica/medio: {artwork.medium}</Text> : null}
+            {artwork.department ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Departamento: {artwork.department}</Text> : null}
+            {artwork.placeOfOrigin ? <Text style={[styles.meta, { fontFamily: Fonts.body }]}>Origen: {artwork.placeOfOrigin}</Text> : null}
+            {artwork.creditLine ? <Text style={[styles.credit, { fontFamily: Fonts.body }]}>{artwork.creditLine}</Text> : null}
+            {artwork.description ? <Text style={[styles.description, { fontFamily: Fonts.body }]}>{artwork.description}</Text> : null}
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
 
-function EmptyState({
-  isLoading,
-  error,
-  isSearching,
-  q,
-  onRetry,
-}: {
-  isLoading: boolean;
-  error: Error | null;
-  isSearching: boolean;
-  q: string;
-  onRetry: () => void;
-}) {
-  if (isLoading) {
-    return (
-      <View style={styles.stateBlock}>
-        <ActivityIndicator size="small" color={Editorial.brass} />
-        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>Cargando la colecci�n...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.stateBlock}>
-        <Text style={styles.stateTitle}>No se pudo cargar la galer�a</Text>
-        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>{error.message}</Text>
-        <Pressable onPress={onRetry} style={styles.retryButton} accessibilityRole="button">
-          <Text style={[styles.retryText, { fontFamily: Fonts.bodyStrong }]}>Reintentar</Text>
-        </Pressable>
-      </View>
-    );
-  }
-
-  if (isSearching) {
-    return (
-      <View style={styles.stateBlock}>
-        <Text style={styles.stateTitle}>Sin resultados</Text>
-        <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>No encontramos obras para �{q}�.</Text>
-        <Text style={[styles.hint, { fontFamily: Fonts.bodyStrong }]}>Prueba con: {SUGGESTIONS.join(' � ')}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.stateBlock}>
-      <Text style={[styles.stateText, { fontFamily: Fonts.body }]}>La colecci�n no est� disponible ahora mismo.</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: Editorial.paper,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: Editorial.rule,
-  },
-  brand: {
-    color: Editorial.ink,
-    fontFamily: Fonts.displayBold,
-    fontSize: 36,
-    letterSpacing: -0.6,
-  },
-  kicker: {
-    color: Editorial.brass,
-    fontSize: 10,
-    letterSpacing: 1.6,
-    marginTop: 4,
-    textTransform: 'uppercase',
-  },
-  headerRule: {
-    backgroundColor: Editorial.ink,
-    height: 1,
-    marginTop: 14,
-    opacity: 0.9,
-  },
-  searchRow: {
-    alignItems: 'center',
-    borderBottomColor: Editorial.rule,
-    borderBottomWidth: 1,
-    flexDirection: 'row',
-    marginTop: 14,
-    paddingBottom: 4,
-  },
-  search: {
-    color: Editorial.ink,
-    flex: 1,
-    fontSize: 15,
-    paddingVertical: 6,
-  },
-  clearText: {
-    color: Editorial.inkSoft,
-    fontFamily: Fonts.body,
-    fontSize: 24,
-    lineHeight: 26,
-    paddingHorizontal: 4,
-  },
-  status: {
-    color: Editorial.inkSoft,
-    fontSize: 11,
-    letterSpacing: 0.3,
-    marginTop: 10,
-  },
-  listContent: {
-    columnGap: 16,
-    paddingBottom: 36,
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    rowGap: 26,
-  },
-  listEmptyContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-  },
-  row: {
-    columnGap: 16,
-  },
-  stateBlock: {
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 28,
-  },
-  stateTitle: {
-    color: Editorial.ink,
-    fontFamily: Fonts.display,
-    fontSize: 21,
-    textAlign: 'center',
-  },
-  stateText: {
-    color: Editorial.inkSoft,
-    fontSize: 13,
-    lineHeight: 20,
-    textAlign: 'center',
-  },
-  hint: {
-    color: Editorial.brass,
-    fontSize: 11,
-    letterSpacing: 0.4,
-    textAlign: 'center',
-  },
-  retryButton: {
-    borderColor: Editorial.ink,
-    borderWidth: 1,
-    marginTop: 4,
-    paddingHorizontal: 24,
-    paddingVertical: 10,
-  },
-  retryText: {
-    color: Editorial.ink,
-    fontSize: 11,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-  },
-  footer: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'center',
-    paddingVertical: 22,
-  },
-  footerText: {
-    color: Editorial.inkSoft,
-    fontSize: 12,
-  },
-  footerError: {
-    color: Editorial.danger,
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  footerAction: {
-    color: Editorial.brass,
-    fontSize: 12,
-    textDecorationLine: 'underline',
-  },
-  moreButton: {
-    alignItems: 'center',
-    borderColor: Editorial.ink,
-    borderWidth: 1,
-    marginBottom: 6,
-    marginTop: 4,
-    paddingVertical: 15,
-  },
-  moreText: {
-    color: Editorial.ink,
-    fontSize: 12,
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-  endBlock: {
-    alignItems: 'center',
-    columnGap: 12,
-    flexDirection: 'row',
-    paddingVertical: 26,
-  },
-  endRule: {
-    backgroundColor: Editorial.rule,
-    flex: 1,
-    height: StyleSheet.hairlineWidth,
-  },
-  endText: {
-    color: Editorial.inkSoft,
-    fontSize: 11,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
+  screen: { flex: 1, backgroundColor: Editorial.paper },
+  header: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 14 },
+  backButton: { alignSelf: "flex-start", marginBottom: 6 },
+  backText: { color: Editorial.brass, fontSize: 14 },
+  headerRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
+  brand: { color: Editorial.ink, fontFamily: Fonts.displayBold, fontSize: 32, letterSpacing: -0.6 },
+  heartDetail: { padding: 4 },
+  headerRule: { backgroundColor: Editorial.ink, height: 1, marginTop: 10, opacity: 0.9 },
+  content: { paddingHorizontal: 20, paddingBottom: 40 },
+  imageFrame: { width: "100%", aspectRatio: 0.8, borderWidth: 1, borderColor: Editorial.rule, padding: 8, backgroundColor: Editorial.paper, marginTop: 12 },
+  image: { width: "100%", height: "100%" },
+  noImage: { alignItems: "center", justifyContent: "center" },
+  noImageText: { color: Editorial.inkSoft, fontFamily: Fonts.body, fontSize: 12 },
+  info: { marginTop: 16, gap: 6 },
+  title: { color: Editorial.ink, fontFamily: Fonts.display, fontSize: 24, lineHeight: 28 },
+  artist: { color: Editorial.inkSoft, fontSize: 14 },
+  meta: { color: Editorial.ink, fontSize: 13 },
+  credit: { color: Editorial.inkSoft, fontSize: 12, marginTop: 4 },
+  description: { color: Editorial.ink, fontSize: 13, lineHeight: 20, marginTop: 6 },
+  stateBlock: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 20, gap: 10 },
+  stateTitle: { color: Editorial.ink, fontFamily: Fonts.display, fontSize: 18 },
+  stateText: { color: Editorial.inkSoft, fontSize: 14, textAlign: "center" },
+  retryButton: { marginTop: 8, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: Editorial.rule },
+  retryText: { color: Editorial.ink, fontSize: 12 },
 });
 
 
@@ -1802,24 +1458,29 @@ const styles = StyleSheet.create({
 ðŸ“„ ARCHIVO: src\app\_layout.tsx
 ================================================
 
+
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { PlayfairDisplay_400Regular } from '@expo-google-fonts/playfair-display/400Regular';
 import { PlayfairDisplay_700Bold } from '@expo-google-fonts/playfair-display/700Bold';
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import {
+  DarkTheme,
+  DefaultTheme,
+  Stack,
+  ThemeProvider,
+} from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme, View } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
-import AppTabs from '@/components/app-tabs';
 import { SyncIndicator } from '@/components/sync-indicator';
 import { QueryProvider } from '@/queries/query-provider';
 
 SplashScreen.preventAutoHideAsync();
 
-export default function TabLayout() {
+export default function RootLayout() {
   const colorScheme = useColorScheme();
 
   const [fontsLoaded, fontsError] = useFonts({
@@ -1833,12 +1494,21 @@ export default function TabLayout() {
 
   return (
     <QueryProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <ThemeProvider
+        value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}
+      >
         <StatusBar style="dark" />
+
         <View style={{ flex: 1 }}>
           {fontsReady ? <AnimatedSplashOverlay /> : null}
           {fontsReady ? <SyncIndicator /> : null}
-          {fontsReady ? <AppTabs /> : null}
+
+          {fontsReady ? (
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="artwork_detail" />
+            </Stack>
+          ) : null}
         </View>
       </ThemeProvider>
     </QueryProvider>
@@ -2289,7 +1959,7 @@ interface ArtworkCardProps {
 export function ArtworkCard({ artwork, index }: ArtworkCardProps) {
   const metaLine = [artwork.date, artwork.department]
     .filter((value): value is string => Boolean(value))
-    .join(" � ");
+    .join(" - ");
 
   const { isFavorite, favorite } = useFavoriteStatus(artwork.id);
   const addFavorite = useAddFavorite();

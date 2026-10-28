@@ -216,18 +216,29 @@ export async function fetchArtworks(options: {
   const page = Math.max(1, options.page ?? 1);
   const term = (options.q ?? '').trim().replace(/\s+/g, ' ');
 
-  const path = term
-    ? `/artworks/search?q=${encodeURIComponent(term)}&page=${page}&limit=${ARTWORKS_PAGE_SIZE}&fields=${LIST_FIELDS}`
-    : `/artworks?page=${page}&limit=${ARTWORKS_PAGE_SIZE}&fields=${LIST_FIELDS}`;
+  const baseParams = `page=${page}&limit=${ARTWORKS_PAGE_SIZE}&fields=${LIST_FIELDS}`;
 
+  // Sin búsqueda: usamos el endpoint de búsqueda con un filtro `exists` para
+  // que la portada solo traiga obras que tengan imagen (las primeras del
+  // catálogo completo no la tienen).
+  const withImageFilter = encodeURIComponent(
+    JSON.stringify({ query: { exists: { field: 'image_id' } } }),
+  );
+
+  const path = term
+    ? `/artworks/search?q=${encodeURIComponent(term)}&${baseParams}`
+    : `/artworks/search?params=${withImageFilter}&${baseParams}`;
+
+  
   const json = await request(path);
 
   const raw = Array.isArray(json.data) ? json.data : [];
+  console.log('[artic]', { term, page, rawCount: raw.length, withImage: raw.filter((r) => r.image_id).length });
   const currentPage = json.pagination?.current_page ?? page;
   const totalPages = json.pagination?.total_pages ?? 1;
 
   // La búsqueda no permite pasar de 10.000 registros (12 por página = página 833).
-  const limitReached = term && currentPage * ARTWORKS_PAGE_SIZE >= SEARCH_MAX_RECORDS;
+  const limitReached = currentPage * ARTWORKS_PAGE_SIZE >= SEARCH_MAX_RECORDS;
 
   return {
     items: raw.flatMap((item) => {

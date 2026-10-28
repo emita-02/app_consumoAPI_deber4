@@ -31,7 +31,7 @@ export const STORAGE_KEY = 'artapp-query-cache-v1';
  * Cambia este valor si rompes el formato de los datos guardados: así la caché
  * vieja se descarta en lugar de restaurarse y fallar.
  */
-const CACHE_BUSTER = 'v1';
+const CACHE_BUSTER = 'v3';
 
 /**
  * Persister: serializa (solo) la caché en AsyncStorage.
